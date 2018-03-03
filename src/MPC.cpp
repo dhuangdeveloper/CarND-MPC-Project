@@ -133,9 +133,10 @@ class FG_eval {
 //
 // MPC class definition implementation.
 //
-MPC::MPC(size_t N, double dt, std::vector<double> weight){
+MPC::MPC(size_t N, double dt, size_t delay_N, std::vector<double> weight){
   this->N = N;
   this->dt = dt;
+  this->delay_N = delay_N;
   this->x_start = 0;
   this->y_start = x_start + N;
   this->psi_start = y_start + N;
@@ -172,6 +173,13 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   vars[v_start] = state[3];
   vars[cte_start] = state[4];
   vars[epsi_start] = state[5];
+
+  // account for delay
+  for (size_t i=0; i< delay_N; i++){
+    vars[delta_start+i] = state[6+i];
+    vars[a_start+i] = state[6+delay_N+i];
+  }
+
 
   Dvector vars_lowerbound(n_vars);
   Dvector vars_upperbound(n_vars);
@@ -213,6 +221,17 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   constraints_upperbound[cte_start] = state[4];
   constraints_upperbound[epsi_start] = state[5];
 
+
+  // account for delay
+
+  for (size_t i=0; i< delay_N; i++){
+    constraints_lowerbound[delta_start+i] = state[6+i];
+    constraints_lowerbound[a_start+i] = state[6+delay_N+i];
+    constraints_lowerbound[delta_start+i] = state[6+i];
+    constraints_lowerbound[a_start+i] = state[6+delay_N+i];
+  }
+
+
   // object that computes objective and constraints
   FG_eval fg_eval(coeffs, N, dt, weight);
 
@@ -248,12 +267,13 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   // Cost
   auto cost = solution.obj_value;
   //std::cout << "Cost " << cost << std::endl;
-  vector<double> sol_vec(N+N);
-  sol_vec[0]=solution.x[delta_start+1];
-  sol_vec[1]=solution.x[a_start+1];
-  for (size_t i=0; i<N-1; i++){
-    sol_vec[2+i] = solution.x[x_start+i+1];
-    sol_vec[2+N-1+i] = solution.x[y_start+i+1];
+  vector<double> sol_vec(2+3*(N-delay_N));
+  sol_vec[0]=solution.x[delta_start+delay_N];
+  sol_vec[1]=solution.x[a_start+delay_N];
+  for (size_t i=0; i<N-delay_N; i++){
+    sol_vec[2+i*3] = solution.x[x_start+i+delay_N];
+    sol_vec[2+i*3+1] = solution.x[y_start+i+delay_N];
+    sol_vec[2+i*3+2] = solution.x[psi_start+i+delay_N];
   }
 
   return sol_vec;

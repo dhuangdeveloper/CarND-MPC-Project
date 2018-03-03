@@ -10,6 +10,7 @@ class MPC {
  public:
   size_t N;
   double dt;
+  size_t delay_N;
   size_t x_start;
   size_t y_start;
   size_t psi_start;
@@ -19,7 +20,7 @@ class MPC {
   size_t delta_start;
   size_t a_start;
   vector<double> weight;
-  MPC(size_t, double, std::vector<double>);
+  MPC(size_t, double, size_t, std::vector<double>);
 
   virtual ~MPC();
 

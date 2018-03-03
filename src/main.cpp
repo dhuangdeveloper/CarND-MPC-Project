@@ -94,31 +94,35 @@ Eigen::VectorXd map_to_car(double xp, double yp, double psi, double xm, double y
 const double mph_to_ms(0.44704);
   /* code */
 
+
 int main(int argc, char* argv[])
 {
   uWS::Hub h;
   size_t N;
   double dt;
+  size_t delay_N=1;
   std::vector<double> weight(7);
-  if (argc!=10){
+  if (argc!=11){
     // The parameter setting is hard-coded as default here
     N=10;
     dt=0.1;
+    delay_N=1;
     for (size_t i=0; i<7; i++){
-      weight[i] = atof(argv[i+3]);
+      weight[i]=1;
     }
   } else {
     // take in command line argument as the parameter setting. This is used to avoid rebuliding the code each time during parameter optimization.
     N=atoi(argv[1]);
     dt=atof(argv[2]);
+    delay_N=atof(argv[3]);
     for (size_t i=0; i<7; i++){
-      weight[i]=1;
+      weight[i] = atof(argv[i+4]);
     }
 
   }
 
   // MPC is initialized here!
-  MPC mpc(N, dt, weight);
+  MPC mpc(N, dt, delay_N, weight);
 
   h.onMessage([&mpc](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                      uWS::OpCode opCode) {
@@ -143,6 +147,8 @@ int main(int argc, char* argv[])
           double py = j[1]["y"];
           double psi = j[1]["psi"];
           double v = j[1]["speed"];
+          double current_steering_angle = j[1]["steering_angle"];
+          double current_throttle = j[1]["throttle"];
           v *= mph_to_ms;
           //std::cout << "px:" << px << " py:" << py << " psi:" << psi << " v:" << v << std::endl;
 
@@ -186,13 +192,18 @@ int main(int argc, char* argv[])
           msgJson["throttle"] = throttle_value;
 
           //Display the MPC predicted trajectory
-          size_t N = (vars.size()-2)/2;
-          vector<double> mpc_x_vals(N);
-          vector<double> mpc_y_vals(N);
-          for (size_t i=0; i<N; i++){
-            mpc_x_vals[i] = vars[2+i];
-            mpc_y_vals[i] = vars[2+N+i];
+          size_t output_size = (vars.size()-2)/3;
+          vector<double> mpc_x_vals(output_size);
+          vector<double> mpc_y_vals(output_size);
+          vector<double> psi_vals(output_size);
+          for (size_t i=0; i<output_size; i++){
+            mpc_x_vals[i] = vars[2+i*3];
+            mpc_y_vals[i] = vars[2+i*3+1];
+            psi_vals[i] = vars[2+i*3+2];
           }
+          double delayed_x=mpc_x_vals[0];
+          double delayed_y=mpc_y_vals[0];
+          double delayed_psi=psi_vals[0];
           //.. add (x,y) points to list here, points are in reference to the vehicle's coordinate system
           // the points in the simulator are connected by a Green line
 
@@ -200,11 +211,10 @@ int main(int argc, char* argv[])
           msgJson["mpc_y"] = mpc_y_vals;
 
           //Display the waypoints/reference line
-          N = ptsx_c.size();
-          vector<double> next_x_vals(N);
-          vector<double> next_y_vals(N);
-          for (size_t i=0; i<N; i++){
-            Eigen::VectorXd xy_new_car_coordinate = map_to_car(v*0.1, 0, 0, ptsx_c[i], ptsy_c[i]);
+          vector<double> next_x_vals(ptsx_c.size());
+          vector<double> next_y_vals(ptsx_c.size());
+          for (size_t i=0; i<ptsx_c.size(); i++){
+            Eigen::VectorXd xy_new_car_coordinate = map_to_car(delayed_x, delayed_y, delayed_psi, ptsx_c[i], ptsy_c[i]);
             next_x_vals[i] = xy_new_car_coordinate[0];
             next_y_vals[i] = xy_new_car_coordinate[1];
           }
