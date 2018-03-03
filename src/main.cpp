@@ -6,6 +6,7 @@
 #include <vector>
 #include "Eigen-3.3/Eigen/Core"
 #include "Eigen-3.3/Eigen/QR"
+#include "Eigen-3.3/Eigen/LU"
 #include "MPC.h"
 #include "json.hpp"
 
@@ -64,12 +65,60 @@ Eigen::VectorXd polyfit(Eigen::VectorXd xvals, Eigen::VectorXd yvals,
   auto result = Q.solve(yvals);
   return result;
 }
+Eigen::VectorXd cap_to_map(double xp, double yp, double psi, double xc, double yc){
+  Eigen::VectorXd xy_c(3);
+  xy_c << xc, yc, 1;
+  Eigen::MatrixXd M(3, 3);
+  M << cos(psi), -sin(psi), xp,
+    sin(psi), cos(psi), yp,
+    0, 0, 1;
+  return M * xy_c;
+}
 
-int main() {
+Eigen::VectorXd map_to_car(double xp, double yp, double psi, double xm, double ym){
+  //Eigen::VectorXd xy_m(3);
+  //xy_m << xm, ym, -1;
+  //Eigen::MatrixXd M(3, 3);
+  //M << cos(psi), -sin(psi), xp,
+  //  sin(psi), cos(psi), yp,
+  //  0, 0, 1;
+  //return M.colPivHouseholderQr().solve(xy_m);
+  Eigen::VectorXd xy_m(2);
+  xy_m << xm-xp, ym-yp;
+  Eigen::MatrixXd M(2, 2);
+  M << cos(-psi), -sin(-psi),
+    sin(-psi), cos(-psi);
+  return M *xy_m;
+}
+
+const double mph_to_ms(0.44704);
+  /* code */
+
+int main(int argc, char* argv[])
+{
   uWS::Hub h;
+  size_t N;
+  double dt;
+  std::vector<double> weight(7);
+  if (argc!=10){
+    // The parameter setting is hard-coded as default here
+    N=10;
+    dt=0.1;
+    for (size_t i=0; i<7; i++){
+      weight[i] = atof(argv[i+3]);
+    }
+  } else {
+    // take in command line argument as the parameter setting. This is used to avoid rebuliding the code each time during parameter optimization.
+    N=atoi(argv[1]);
+    dt=atof(argv[2]);
+    for (size_t i=0; i<7; i++){
+      weight[i]=1;
+    }
+
+  }
 
   // MPC is initialized here!
-  MPC mpc;
+  MPC mpc(N, dt, weight);
 
   h.onMessage([&mpc](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                      uWS::OpCode opCode) {
@@ -87,30 +136,63 @@ int main() {
           // j[1] is the data JSON object
           vector<double> ptsx = j[1]["ptsx"];
           vector<double> ptsy = j[1]["ptsy"];
+          //std::cout << "ptsx size: " << ptsx.size() << std::endl;
+
+
           double px = j[1]["x"];
           double py = j[1]["y"];
           double psi = j[1]["psi"];
           double v = j[1]["speed"];
+          v *= mph_to_ms;
+          //std::cout << "px:" << px << " py:" << py << " psi:" << psi << " v:" << v << std::endl;
 
+          // Convert to Vehicle coordinate
+          Eigen::VectorXd ptsx_c(ptsx.size());
+          Eigen::VectorXd ptsy_c(ptsy.size());
+          for (size_t i=0; i<ptsx.size(); i++){
+            Eigen::VectorXd xy_c = map_to_car(px, py, psi, ptsx[i], ptsy[i]);
+            ptsx_c[i] = xy_c[0];
+            ptsy_c[i] = xy_c[1];
+          }
+          std::cout << "ptsx_c:" << ptsx_c << " ptsy_c:" << ptsy_c << std::endl;
+          double px_c = 0;
+          double py_c = 0;
+          double psi_c = 0;
+
+          Eigen::VectorXd coeffs = polyfit(ptsx_c, ptsy_c, 3);
+          //std::cout << "coef: " << coeffs << std::endl;
+          double cte = polyeval(coeffs, px_c) - py_c ;
+          // TODO: calculate the orientation error
+          double epsi = psi_c - atan(coeffs[1] + coeffs[2] * px_c *2 + coeffs[3] * px_c * px_c* 3);
           /*
           * TODO: Calculate steering angle and throttle using MPC.
           *
           * Both are in between [-1, 1].
           *
           */
-          double steer_value;
-          double throttle_value;
+          Eigen::VectorXd state(6);
+          state << px_c, py_c, psi_c, v, cte, epsi;
+          //std::cout << "state: " << state << std::endl;
+          std::vector<double> vars = mpc.Solve(state,  coeffs);
+          //std::cout << "Solve, var: " << vars[0] <<" " <<  vars [1] << std::endl;
+
+          double steer_value = -vars[0];
+          double throttle_value = vars[1];
 
           json msgJson;
           // NOTE: Remember to divide by deg2rad(25) before you send the steering value back.
           // Otherwise the values will be in between [-deg2rad(25), deg2rad(25] instead of [-1, 1].
-          msgJson["steering_angle"] = steer_value;
+          msgJson["steering_angle"] = steer_value / deg2rad(25);
           msgJson["throttle"] = throttle_value;
 
-          //Display the MPC predicted trajectory 
-          vector<double> mpc_x_vals;
-          vector<double> mpc_y_vals;
-
+          //Display the MPC predicted trajectory
+          size_t N = (vars.size()-2)/2;
+          vector<double> mpc_x_vals(N);
+          vector<double> mpc_y_vals(N);
+          for (size_t i=0; i<N; i++){
+            mpc_x_vals[i] = vars[2+i];
+            mpc_y_vals[i] = vars[2+N+i];
+          }
           //.. add (x,y) points to list here, points are in reference to the vehicle's coordinate system
           // the points in the simulator are connected by a Green line
 
@@ -118,9 +200,19 @@ int main() {
           msgJson["mpc_y"] = mpc_y_vals;
 
           //Display the waypoints/reference line
-          vector<double> next_x_vals;
-          vector<double> next_y_vals;
-
+          N = ptsx_c.size();
+          vector<double> next_x_vals(N);
+          vector<double> next_y_vals(N);
+          for (size_t i=0; i<N; i++){
+            Eigen::VectorXd xy_new_car_coordinate = map_to_car(v*0.1, 0, 0, ptsx_c[i], ptsy_c[i]);
+            next_x_vals[i] = xy_new_car_coordinate[0];
+            next_y_vals[i] = xy_new_car_coordinate[1];
+          }
+          //for (size_t i=0; i<ptsx.size(); i++){
+          //  Eigen::VectorXd xy_c = map_to_car(px, py, psi, ptsx[i], ptsy[i]);
+          //  ptsx_c[i] = xy_c[0];
+          //  ptsy_c[i] = xy_c[1];
+          //}
           //.. add (x,y) points to list here, points are in reference to the vehicle's coordinate system
           // the points in the simulator are connected by a Yellow line
 

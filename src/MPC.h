@@ -8,7 +8,18 @@ using namespace std;
 
 class MPC {
  public:
-  MPC();
+  size_t N;
+  double dt;
+  size_t x_start;
+  size_t y_start;
+  size_t psi_start;
+  size_t v_start;
+  size_t cte_start;
+  size_t epsi_start;
+  size_t delta_start;
+  size_t a_start;
+  vector<double> weight;
+  MPC(size_t, double, std::vector<double>);
 
   virtual ~MPC();
 
