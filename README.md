@@ -34,14 +34,14 @@ Model Predictive Controller for Udacity Self-Driving Car Simulation
 Details of the model, the choice of parameters, and the latency handling method are described below:
 
 ### Model
-The vehicle $x$ model implemented is a global kinematic model and the following state variables are used for the vehiclde:
-$$x_{t+1} = x_t + v_t \cos(\psi_t) \times dt$$
+The vehicle model implemented is a global kinematic model and the following state variables are used for the vehiclde:
+$$x_{t+1} = x_t + v_t \cos(\psi_t) dt$$
 
-$$y_{t+1} = y_t + v_t \sin(\psi_t) \times dt$$
+$$y_{t+1} = y_t + v_t \sin(\psi_t) dt$$
 
-$$\psi_{t+1} = \psi_t + v_t / L_f \times \delta_t \times dt$$
+$$\psi_{t+1} = \psi_t + \frac{v_t}{L_f}\delta_t dt$$
 
-$$v_{t+1} = v_t + a_t \times dt$$
+$$v_{t+1} = v_t + a_t dt$$
 
 To calculate control policy, we also calculate two errors, the cross track error (CTE) and the orientation error:
 $$\sf{cte}_{t} = y_t - f(x_t)$$
