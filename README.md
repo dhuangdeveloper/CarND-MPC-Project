@@ -50,7 +50,29 @@ $$\sf{e\psi}_t = \psi_t - \arctan(f'(x_t))$$
 
 The model predictive controls is given by the solution that minimizes the following objective function 
 
-$$\sum_{t=0^{N-1}$ (w_{\sf{cte}} \sf{cte}_{t}^2 + w_{\sf{e\psi}} \sf{e{\psi}}_{t}^2 + w_{v} (v_{t}-v_{\sf{ref}})^2 + w_\delta \delta_t^2 + w_a a_t^2$$
+$$\sum_{t=0}^{N-1} (w_{\sf{cte}} \sf{cte}_{t}^2 + w_{\sf{e\psi}} \sf{e{\psi}}_{t}^2 + w_{v} (v_{t}-v_{\sf{ref}})^2) + \sum_{t=0}^{N-2} (w_\delta \delta_t^2 + w_a a_t^2) + \sum_{t=0}^{N-3} (w_{d\delta}(\delta_{t+1}-\delta_t)^2 + w_{da}(a_{t+1}-a_t)^2)$$
+
+
+### Parameters
+Our choice of the MPC parameters are:
+$N=10$, $d_t=0.2$, $w_{\sf{cte}} = 2$, $w_{\sf{e\psi}}=1$, $w_{v} = 10$, $w_\delta=1000$, $w_a=1000$, $w_\ddelta=1000$, $w_da=1000$.
+Based on timing in the code, the average update time is around 0.2s, thus we choose $d_t=0.2$. This is also set as the latency. A large $N$ will leads to a better control action in each iteration but requires longer time to compute and a small $N$ will do the opposite. We choose $N=10$ as it seems to be a good balance between the two requirement based on past iterations with $N=5$, $N=10$ and $N=15$.
+
+
+### Latency
+
+To handle the latency, instead of using the current state values returned from the simulator, we set the initial $x_0$, $y_0$, $\psi_0$ and $v_0$ as the predicted value after $T$. 
+Denote the state values returned from the simulator as $\bar{x}$, $\bar{y}$, $\bar{\psi}$, $\bar{v}$, $\bar{\delta}$ and $\bar{a}$. We set the initial values as:
+$$x_{0} = \bar{x} + \bar{v} \cos(\bar{\psi}) T$$
+
+$$y_{0} = \bar{y} + \bar{v} \sin(\bar{\psi}) T$$
+
+$$\psi_{0} = \bar{\psi} + \frac{\bar{v}}{L_f}\bar{\delta} T$$
+
+$$v_{0} = \bar{v} + \bar{a} T$$
+
+Our choice of latency is $T=0.2$ based on timing information. 
+
 
 
 
