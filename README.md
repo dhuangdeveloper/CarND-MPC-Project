@@ -48,6 +48,10 @@ $$\sf{cte}_{t} = y_t - f(x_t)$$
 where $f(x_t)$ is the reference line,
 $$\sf{e\psi}_t = \psi_t - \arctan(f'(x_t))$$ 
 
+The model predictive controls is given by the solution that minimizes the following objective function 
 
-$$\sf{cte}_t = y_t = f(x_t)$ where
+$$\sum_{t=0^{N-1}$ (w_{\sf{cte}} \sf{cte}_{t}^2 + w_{\sf{e\psi}} \sf{e{\psi}}_{t}^2 + w_{v} (v_{t}-v_{\sf{ref}})^2 + w_\delta \delta_t^2 + w_a a_t^2$$
+
+
+
 
