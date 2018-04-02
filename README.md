@@ -34,7 +34,7 @@ Model Predictive Controller for Udacity Self-Driving Car Simulation
 Details of the model, the choice of parameters, and the latency handling method are described below:
 
 ### Model
-The vehicle model implemented is a global kinematic model and the following state variables are used for the vehiclde:
+The vehicle $x$ model implemented is a global kinematic model and the following state variables are used for the vehiclde:
 $$x_{t+1} = x_t + v_t \cos(\psi_t) \times dt$$
 
 $$y_{t+1} = y_t + v_t \sin(\psi_t) \times dt$$
