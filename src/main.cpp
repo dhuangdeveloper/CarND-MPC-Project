@@ -112,11 +112,15 @@ int main(int argc, char* argv[])
   if (argc!=11){
     // The parameter setting is hard-coded as default here
     N=10;
-    dt=0.1;
-    latency=0.1;
-    for (size_t i=0; i<7; i++){
-      weight[i]=1;
-    }
+    dt=0.2;
+    latency=0.2;
+    weight[0]=2;
+    weight[1]=1;
+    weight[2]=10;
+    weight[3]=1000;
+    weight[4]=1000;
+    weight[5]=1000;
+    weight[6]=1000;
   } else {
     // take in command line argument as the parameter setting. This is used to avoid rebuliding the code each time during parameter optimization.
     std::cout << "command line" << std::endl;

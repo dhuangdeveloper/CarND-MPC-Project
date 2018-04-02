@@ -108,7 +108,7 @@ class FG_eval {
       AD<double> v1 = vars[v_start + t];
       AD<double> v0 = vars[v_start + t - 1];
       AD<double> cte1 = vars[cte_start + t];
-      AD<double> cte0 = vars[cte_start + t -1];
+      //AD<double> cte0 = vars[cte_start + t -1];
       AD<double> epsi1 = vars[epsi_start + t];
       AD<double> epsi0 = vars[epsi_start + t - 1];
 
@@ -239,7 +239,7 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   options += "Sparse  true        reverse\n";
   // NOTE: Currently the solver has a maximum time limit of 0.5 seconds.
   // Change this as you see fit.
-  options += "Numeric max_cpu_time          0.5\n";
+  options += "Numeric max_cpu_time          0.3\n";
 
   // place to return solution
   CppAD::ipopt::solve_result<Dvector> solution;
