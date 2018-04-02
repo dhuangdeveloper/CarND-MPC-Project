@@ -7,9 +7,6 @@ using CppAD::AD;
 
 // Set the timestep length and duration
 
-
-
-
 // This value assumes the model presented in the classroom is used.
 //
 // It was obtained by measuring the radius formed by running the vehicle in the
@@ -78,7 +75,9 @@ class FG_eval {
     for (size_t t = 0; t< N; t++){
       fg[0] += w_cte*CppAD::pow(vars[cte_start + t], 2);
       fg[0] += w_epsi*CppAD::pow(vars[epsi_start + t], 2);
-      fg[0] -= w_v*CppAD::log(1+vars[v_start + t]);
+      //fg[0] -= w_v*CppAD::log(1+vars[v_start + t]);
+      fg[0] += w_v*CppAD::pow(vars[v_start + t]-ref_v, 2);
+
     }
 
     for (size_t t = 0; t< N-1; t++){
@@ -123,7 +122,7 @@ class FG_eval {
       fg[1 + y_start + t] = y1- (y0 + v0 * CppAD::sin(psi0) * dt);
       fg[1 + psi_start + t] = psi1- (psi0 + v0 * delta0 /Lf * dt);
       fg[1 + v_start + t] = v1- (v0 + a0 * dt);
-      fg[1 + cte_start + t] = cte1 - (f0 - y0 + v0 *  CppAD::sin(epsi0) * dt);
+      fg[1 + cte_start + t] = cte1 - (y0 - f0 + v0 *  CppAD::sin(epsi0) * dt);
       fg[1 + epsi_start + t] = epsi1 - (psi0 -  psi_desired + (v0 * delta0 / Lf * dt));
     }
 
@@ -133,10 +132,9 @@ class FG_eval {
 //
 // MPC class definition implementation.
 //
-MPC::MPC(size_t N, double dt, size_t delay_N, std::vector<double> weight){
+MPC::MPC(size_t N, double dt, std::vector<double> weight){
   this->N = N;
   this->dt = dt;
-  this->delay_N = delay_N;
   this->x_start = 0;
   this->y_start = x_start + N;
   this->psi_start = y_start + N;
@@ -153,7 +151,7 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   bool ok = true;
   //size_t i;
   typedef CPPAD_TESTVECTOR(double) Dvector;
-
+  //std::cout << "MPC Solve start " << state << std::endl;
   // Set the number of model variables
   size_t n_vars = N * 6 + (N - 1) * 2;
   // Set the number of contraints
@@ -174,13 +172,8 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   vars[cte_start] = state[4];
   vars[epsi_start] = state[5];
 
-  // account for delay
-  for (size_t i=0; i< delay_N; i++){
-    vars[delta_start+i] = state[6+i];
-    vars[a_start+i] = state[6+delay_N+i];
-  }
 
-
+  //std::cout << "Bound" << vars.size() << std::endl;
   Dvector vars_lowerbound(n_vars);
   Dvector vars_upperbound(n_vars);
   // TODO: Set lower and upper limits for variables.
@@ -190,14 +183,15 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   }
   // constrints for delta values
   for (size_t i = delta_start; i < a_start; i++) {
-    vars_lowerbound[i] = -1;
-    vars_upperbound[i] = 1;
+    vars_lowerbound[i] = -25 * M_PI / 180.0;
+    vars_upperbound[i] = 25 * M_PI / 180.0;
   }
 
   for (size_t i = a_start; i < n_vars; i++) {
     vars_lowerbound[i] = -1.0;
     vars_upperbound[i] = 1.0;
   }
+
   // Lower and upper limits for the constraints
   // Should be 0 besides initial state.
   Dvector constraints_lowerbound(n_constraints);
@@ -224,14 +218,8 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
 
   // account for delay
 
-  for (size_t i=0; i< delay_N; i++){
-    constraints_lowerbound[delta_start+i] = state[6+i];
-    constraints_lowerbound[a_start+i] = state[6+delay_N+i];
-    constraints_lowerbound[delta_start+i] = state[6+i];
-    constraints_lowerbound[a_start+i] = state[6+delay_N+i];
-  }
 
-
+  //std::cout << "state size" << state.size() << std::endl;
   // object that computes objective and constraints
   FG_eval fg_eval(coeffs, N, dt, weight);
 
@@ -265,15 +253,16 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   ok &= solution.status == CppAD::ipopt::solve_result<Dvector>::success;
 
   // Cost
-  auto cost = solution.obj_value;
+  //auto cost = solution.obj_value;
   //std::cout << "Cost " << cost << std::endl;
-  vector<double> sol_vec(2+3*(N-delay_N));
-  sol_vec[0]=solution.x[delta_start+delay_N];
-  sol_vec[1]=solution.x[a_start+delay_N];
-  for (size_t i=0; i<N-delay_N; i++){
-    sol_vec[2+i*3] = solution.x[x_start+i+delay_N];
-    sol_vec[2+i*3+1] = solution.x[y_start+i+delay_N];
-    sol_vec[2+i*3+2] = solution.x[psi_start+i+delay_N];
+  vector<double> sol_vec(2+3*N);
+  //std::cout << "size" << solution.x.size() << std::endl;
+  sol_vec[0]=solution.x[delta_start];
+  sol_vec[1]=solution.x[a_start];
+  for (size_t i=0; i<N; i++){
+    sol_vec[2+i*3] = solution.x[x_start+i];
+    sol_vec[2+i*3+1] = solution.x[y_start+i];
+    sol_vec[2+i*3+2] = solution.x[psi_start+i];
   }
 
   return sol_vec;
