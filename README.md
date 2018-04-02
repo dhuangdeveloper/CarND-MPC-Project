@@ -73,6 +73,16 @@ $N=10$, $d_t=0.2$, $w_{\sf{cte}} = 2$, $w_{\sf{e\psi}}=1$, $w_{v} = 10$, $w_\del
 Based on timing in the code, the average update time is around 0.2s, thus we choose $d_t=0.2$. This is also set as the latency. A large $N$ will leads to a better control action in each iteration but requires longer time to compute and a small $N$ will do the opposite. We choose $N=10$ as it seems to be a good balance between the two requirement based on past iterations with $N=5$, $N=10$ and $N=15$.
 
 
+### Preprocessing of Waypoints Before MPC
+The main.cpp receives the data from the simulator, perform preprocesing, and then call the MPC to solve for the optimal control policy.
+The preprocessing steps include the following:
+1. Convert the data in the simulator message into propriate representation: Convert speed from mph to m/s, and take negative of `steering_angle` as the intial `delta`.
+2. Calculate predicted car state after accounting for latency. Please see Latency section for details. 
+3. Transform the waypoints from map coordinates to vehicle coordinates: This is done by calling the `map_to_car` function defined in the main.cpp. 
+4. Transform the predicted car state from map coordiantes to vehicle coordinates.
+5. Fit 3rd degree polynomail to the waypoints, and use the fitted polynomail to calculate initial errors。
+
+
 ### Latency
 
 To handle the latency, instead of using the current state values returned from the simulator, we set the initial $x_0$, $y_0$, $\psi_0$ and $v_0$ as the predicted value after $T$. 
