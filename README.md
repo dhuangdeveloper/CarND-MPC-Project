@@ -1,6 +1,26 @@
 # CarND-Controls-MPC
 Model Predictive Controller for Udacity Self-Driving Car Simulation
 
+
+
+## Basic Build Instructions
+
+1. Clone this repo.
+2. Make a build directory: `mkdir build && cd build`
+3. Compile: `cmake .. && make`
+4. Run it: `./mpc`. See Run instructions for other options
+
+## Basic Run Instructions
+There are two options to run the controller. 
+* Options 1: Default parameter './mpc'
+* Options 2: Parameter from command line './mpc $N $dt $T $w_cte $w_epsi $w_v $w_delta $w_a $w_ddelta $w_da '
+where
+  * $N is the number of look-ahead steps
+  * $dt is the sampling interval
+  * $T is the latency.
+  * $w_cte $w_epsi $w_v $w_delta $w_a $w_ddelta $w_da are optimization parameters to be explained in the Model section
+
+
 ## Dependencies
 
 * cmake >= 3.5
@@ -22,13 +42,7 @@ Model Predictive Controller for Udacity Self-Driving Car Simulation
     git checkout e94b6e1
     ```
     Some function signatures have changed in v0.14.x. See [this PR](https://github.com/udacity/CarND-MPC-Project/pull/3) for more details.
-
-## Basic Build Instructions
-
-1. Clone this repo.
-2. Make a build directory: `mkdir build && cd build`
-3. Compile: `cmake .. && make`
-4. Run it: `./mpc`.
+    
 
 ## Model Implementation Details
 Details of the model, the choice of parameters, and the latency handling method are described below:
