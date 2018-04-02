@@ -12,8 +12,8 @@ Model Predictive Controller for Udacity Self-Driving Car Simulation
 
 ## Basic Run Instructions
 There are two options to run the controller. 
-* Options 1: Default parameter './mpc'
-* Options 2: Parameter from command line './mpc $N $dt $T $w_cte $w_epsi $w_v $w_delta $w_a $w_ddelta $w_da '
+* Options 1: Default parameter `./mpc`
+* Options 2: Parameter from command line `./mpc $N $dt $T $w_cte $w_epsi $w_v $w_delta $w_a $w_ddelta $w_da`
 where
   * $N is the number of look-ahead steps
   * $dt is the sampling interval
